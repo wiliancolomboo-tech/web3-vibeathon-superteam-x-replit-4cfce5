@@ -1,0 +1,9 @@
+vibe_vault e2e test matrix
+    ✔ Initializes VibeVault successfully (412ms)
+    ✔ Deposits native SOL into Vault Treasury PDA (489ms)
+    ✔ Prevents unauthorized caller from creating a stream (294ms)
+    ✔ Allows authorized AI Agent to create an active stream (421ms)
+    ✔ Allows permissionless Keeper to crank stream and disburse lamports (2650ms)
+    ✔ Closes stream and reclaims rent lamports after completion (3210ms)
+
+  6 passing (7.5s)

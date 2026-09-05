@@ -1,0 +1,11 @@
+┌───────────────────────────┐
+                          │   ATTACK SURFACE MATRIX   │
+                          └─────────────┬─────────────┘
+                                        │
+           ┌────────────────────────────┼────────────────────────────┐
+           ▼                            ▼                            ▼
+  [Unauthorized Agent]        [Integer Overflow]            [PDA Seed Spoofing]
+           │                            │                            │
+           ▼                            ▼                            ▼
+  Constraint Check:            checked_mul / add            Canonical bump check
+  signer == agent || owner     Anchor math guards           PDA seed anchoring

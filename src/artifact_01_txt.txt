@@ -1,0 +1,14 @@
+┌──────────────────────────────────────────────┐
+               │         Replit Autonomous Agent Pod          │
+               │   (Observability, LLM Inference, Trigger)    │
+               └──────────────────────┬───────────────────────┘
+                                      │ Ed25519 Session Signature
+                                      ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│                    Solana Runtime (Anchor Program)                         │
+│                                                                            │
+│  [Agent Treasury PDA] ──(Stream CPI)──► [Contributor Escrow PDA]           │
+│           │                                       │                        │
+│     Keeper Cranker                         Deterministic                   │
+│     (CU-Optimized)                           Settlement                    │
+└────────────────────────────────────────────────────────────────────────────┘
