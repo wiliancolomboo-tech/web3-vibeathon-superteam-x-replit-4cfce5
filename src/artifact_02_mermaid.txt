@@ -1,57 +1,62 @@
 flowchart TD
-    subgraph Client_And_Agent_Layer["Replit Environment & External Actors"]
-        Creator["Creator / Deployer (Human)"]
-        ReplitAgent["Replit AI Agent (Ephemeral Session Key)"]
-        KeeperBot["Permissionless Keeper Bot"]
+    %% Styling
+    classDef client fill:#1E293B,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC;
+    classDef pda fill:#0F172A,stroke:#A855F7,stroke-width:2px,color:#F8FAFC;
+    classDef program fill:#1E1B4B,stroke:#6366F1,stroke-width:2px,color:#F8FAFC;
+    classDef cpi fill:#312E81,stroke:#EC4899,stroke-width:2px,color:#F8FAFC;
+    classDef security fill:#450A0A,stroke:#EF4444,stroke-width:2px,color:#F8FAFC;
+
+    subgraph External_Entities ["External Actors & Agents"]
+        Client["Client / Task Creator<br/>(Replit User / AI App)"]:::client
+        Agent["Autonomous Worker Agent<br/>(Replit Background Container)"]:::client
+        ValidatorNode["Solana Network / Keepers"]:::client
     end
 
-    subgraph Program_Derived_Addresses["Program Derived Addresses (PDAs)"]
-        VaultPDA[("Vault State PDA<br/>seeds=['vault', creator, id]")]
-        VaultTreasuryPDA[("Vault Treasury SOL/Token Escrow<br/>seeds=['treasury', vault]")]
-        StreamPDA[("Stream State PDA<br/>seeds=['stream', vault, recipient]")]
-        MilestonePDA[("Milestone PDA<br/>seeds=['milestone', vault, index]")]
+    subgraph Protocol_Program ["VibeAgent Anchor Program (Target: vibe1111...)"]
+        InitAgent["Instruction: register_agent()<br/>Stakes SOL/Tokens into Registry"]:::program
+        CreateJob["Instruction: create_job()<br/>Locks Bounty + Sets Spec Hash"]:::program
+        ClaimJob["Instruction: claim_job()<br/>Locks Agent Staking Guarantee"]:::program
+        SubmitSolution["Instruction: complete_job()<br/>Delivers Execution Proof & Result Hash"]:::program
+        ResolveDispute["Instruction: resolve_dispute()<br/>Optimistic Timeout or Arbiter Slasher"]:::program
     end
 
-    subgraph Solana_System_Programs["Native & External Programs"]
-        SystemProgram["System Program (1111..11)"]
-        TokenProgram["SPL Token Program / Token-2022"]
-        ClockSysvar["Clock Sysvar (Slot & Unix Timestamp)"]
+    subgraph State_PDAs ["Derived Accounts (PDAs)"]
+        AgentProfile["Agent PDA<br/>Seeds: ['agent', agent_pubkey]<br/>- Stake Balance<br/>- Completed Tasks<br/>- Reputation Score"]:::pda
+        JobAccount["Job State PDA<br/>Seeds: ['job', job_id]<br/>- Creator Pubkey<br/>- Spec SHA-256 Hash<br/>- Payout Amount<br/>- Expiration Slot<br/>- Job Status (Pending/Active/Settled)"]:::pda
+        VaultPDA["Job Escrow Vault (Token/SOL)<br/>Seeds: ['vault', job_pda]"]:::pda
     end
 
-    %% Initialization Flow
-    Creator -->|"1. initialize_vault(id, rate_cap)"| VaultPDA
-    Creator -->|"2. deposit_funds(lamports)"| VaultTreasuryPDA
-    VaultPDA -.->|"Derived Seeds"| VaultTreasuryPDA
+    subgraph Security_Guards ["Security & Verification Guards"]
+        SignerCheck{"Signer Check:<br/>Agent/Client Valid?"}:::security
+        StateGuard{"State Guard:<br/>Valid Transition?"}:::security
+        ExpiryGuard{"Slot Guard:<br/>Clock::get() > Expiry?"}:::security
+    end
 
-    %% Delegation Flow
-    Creator -->|"3. authorize_agent(agent_pubkey, limit)"| VaultPDA
+    subgraph SPL_CPI ["Solana Program Runtime / CPI"]
+        TokenProg["SPL Token / System Program"]:::cpi
+        TransferOut["CPI: Token Transfer / Native Transfer<br/>(Signer: PDA ['vault', job_pda])"]:::cpi
+    end
 
-    %% Autonomous Stream Flow
-    ReplitAgent -->|"4. create_stream(recipient, rate_per_sec)"| StreamPDA
-    StreamPDA -->|"Verify Agent Signer & Allowance"| VaultPDA
+    %% Execution Flows
+    Agent -->|1. Register & Stake| InitAgent
+    InitAgent --> AgentProfile
 
-    %% Stream Settlement Flow
-    KeeperBot -->|"5. crank_stream()"| StreamPDA
-    StreamPDA -->|"Read current timestamp"| ClockSysvar
-    StreamPDA -->|"Calculate accrued = dt * rate"| StreamPDA
-    StreamPDA -->|"CPI Transfer (accrued)"| VaultTreasuryPDA
-    VaultTreasuryPDA -->|"Transfer Lamports/SPL"| RecipientAcc["Recipient Account"]
+    Client -->|2. Post Prompt & Escrow| CreateJob
+    CreateJob --> StateGuard
+    StateGuard -->|Success| JobAccount
+    CreateJob -->|Fund Lock| VaultPDA
 
-    %% Milestone Resolution Flow
-    ReplitAgent -->|"6. submit_milestone(proof_hash)"| MilestonePDA
-    Creator -->|"7. approve_and_disburse(milestone_idx)"| MilestonePDA
-    MilestonePDA -->|"CPI Release Funds"| VaultTreasuryPDA
-    VaultTreasuryPDA -->|"Disburse Bounty"| RecipientAcc
+    Agent -->|3. Discover & Claim| ClaimJob
+    JobAccount --> SignerCheck
+    SignerCheck -->|Authorized| ClaimJob
 
-    %% Close State
-    Creator -->|"8. close_stream_or_vault()"| VaultPDA
-    VaultPDA -->|"Reclaim Rent Lamports"| Creator
+    Agent -->|4. Submit Verification Hash| SubmitSolution
+    SubmitSolution --> StateGuard
+    StateGuard --> ExpiryGuard
+    ExpiryGuard -->|Proof Accepted| TransferOut
+    TransferOut -->|Disburse Escrow| Agent
+    TransferOut -->|Update Stats| AgentProfile
 
-    %% Security Styling
-    classDef security fill:#2c3e50,stroke:#e74c3c,stroke-width:2px,color:#ffffff;
-    classDef state fill:#1a365d,stroke:#2b6cb0,stroke-width:2px,color:#ffffff;
-    classDef external fill:#1c1917,stroke:#ca8a04,stroke-width:2px,color:#ffffff;
-
-    class VaultPDA,StreamPDA,MilestonePDA,VaultTreasuryPDA state;
-    class SystemProgram,TokenProgram,ClockSysvar external;
-    class Creator,ReplitAgent,KeeperBot security;
+    ValidatorNode -->|On Timeout / Failure| ResolveDispute
+    ResolveDispute --> ExpiryGuard
+    ExpiryGuard -->|Refund| Client

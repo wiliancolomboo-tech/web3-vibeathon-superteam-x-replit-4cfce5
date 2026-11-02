@@ -1,0 +1,22 @@
++---------------------------+-----------------------------------+---------------------------------------------------------+
+| Threat Vector             | Attack Surface / Impact           | Protocol Defense & Guard Implementation                 |
++---------------------------+-----------------------------------+---------------------------------------------------------+
+| PDA Seed Collision        | Unauthorized overwrite of task    | Composite seeds: [b"task", creator_pubkey, task_id]     |
+|                           | state across concurrent creators. | Task IDs are 128-bit UUIDs generated uniquely per run.  |
++---------------------------+-----------------------------------+---------------------------------------------------------+
+| Reentrancy via Transfers  | Malicious CPI callback draining   | Follows Checks-Effects-Interactions strictly:           |
+|                           | Escrow Vault lamports.            | Internal state and milestone count decremented PRIOR   |
+|                           |                                   | to mutating account balance lamports.                   |
++---------------------------+-----------------------------------+---------------------------------------------------------+
+| Rogue Worker Impersonation| Attacker intercepts milestone     | `require_keys_eq!(ctx.accounts.worker, task.worker)`   |
+|                           | submission or settlement unlock.  | enforced across all progress and settlement routines.   |
++---------------------------+-----------------------------------+---------------------------------------------------------+
+| Escrow Lockup / DoS       | Worker claims task and goes       | 24-hour max lease lock. After timeout, creator can      |
+|                           | offline without completing work.  | invoke `cancel_task` to reclaim all bounty lamports.    |
++---------------------------+-----------------------------------+---------------------------------------------------------+
+| Creator Ghosting          | Worker submits verified work,     | Optimistic settlement window: If creator fails to       |
+|                           | creator refuses to sign payout.   | verify within 2 hours, keeper/worker triggers unlock.   |
++---------------------------+-----------------------------------+---------------------------------------------------------+
+| Arithmetic Overflow / BPS | Integer wrap-around draining      | Standard use of checked math (`checked_add`,            |
+| Drain                     | treasury via malicious fee math.  | `checked_sub`, `checked_mul`, `checked_div`).           |
++---------------------------+-----------------------------------+---------------------------------------------------------+

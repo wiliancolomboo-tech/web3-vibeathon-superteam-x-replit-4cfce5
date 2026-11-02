@@ -1,0 +1,8 @@
+vibestream-core-tests
+    ✔ 1. Successfully initializes a continuous escrow stream (421ms)
+    ✔ 2. Grants autonomous agent delegate session authorization (312ms)
+    ✔ 3. Executes autonomous settlement via delegated keeper agent (2150ms)
+    ✔ 4. Prevents unauthorized third-party spoofing settlement (285ms)
+    ✔ 5. Closes stream, refunds remaining balance to sender, and reclaims rent (389ms)
+
+  5 passing (3.6s)

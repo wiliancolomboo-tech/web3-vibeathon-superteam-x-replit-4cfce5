@@ -1,0 +1,10 @@
+vibeagent-protocol/
+├── Anchor.toml
+├── Cargo.toml
+├── programs/
+│   └── vibeagent/
+│       ├── Cargo.toml
+│       └── src/
+│           └── lib.rs
+└── tests/
+    └── vibeagent.ts

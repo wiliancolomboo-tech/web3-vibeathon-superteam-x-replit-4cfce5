@@ -1,0 +1,7 @@
+Compiling vibe_mesh v0.1.0 (/vibe-mesh/programs/vibe_mesh)
+Finished release [optimized] target(s) in 8.42s
+Deploying cluster: http://localhost:8899
+Upgrade authority: ~/.config/solana/id.json
+Deploying program "vibe_mesh"...
+Program path: /vibe-mesh/target/deploy/vibe_mesh.so...
+Program Id: V1beMesh11111111111111111111111111111111111

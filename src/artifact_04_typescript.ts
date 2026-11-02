@@ -1,207 +1,240 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { VibeVault } from "../target/types/vibe_vault";
-import {
-  Keypair,
-  LAMPORTS_PER_SOL,
-  PublicKey,
-  SystemProgram,
-} from "@solana/web3.js";
+import { VibeMesh } from "../target/types/vibe_mesh";
+import { PublicKey, Keypair, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { expect } from "chai";
+import * as crypto from "crypto";
 
-describe("vibe_vault e2e test matrix", () => {
+describe("vibe_mesh Protocol Verification Matrix", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = anchor.workspace.VibeVault as Program<VibeVault>;
+  const program = anchor.workspace.VibeMesh as Program<VibeMesh>;
 
-  const owner = Keypair.generate();
-  const agent = Keypair.generate();
-  const unauthorizedAgent = Keypair.generate();
-  const recipient = Keypair.generate();
-  const keeper = Keypair.generate();
+  const admin = Keypair.generate();
+  const feeRecipient = Keypair.generate();
+  const creator = Keypair.generate();
+  const workerAgent = Keypair.generate();
+  const maliciousActor = Keypair.generate();
 
-  const vaultId = new anchor.BN(42069);
-  const maxRate = new anchor.BN(10_000_000); // 0.01 SOL/sec
-  const streamRate = new anchor.BN(1_000_000); // 0.001 SOL/sec
-
-  let vaultPda: PublicKey;
-  let treasuryPda: PublicKey;
-  let streamPda: PublicKey;
+  let configPda: PublicKey;
+  let taskId: number[];
+  let taskPda: PublicKey;
+  let escrowVaultPda: PublicKey;
 
   before(async () => {
-    // Fund test keypairs
-    const airdropSigners = [owner, agent, unauthorizedAgent, keeper];
+    // Fund test wallets
+    const airdropSigners = [admin, creator, workerAgent, maliciousActor];
     for (const signer of airdropSigners) {
-      const sig = await provider.connection.requestAirdrop(
-        signer.publicKey,
-        5 * LAMPORTS_PER_SOL
-      );
-      await provider.connection.confirmTransaction(sig);
+      const sig = await provider.connection.requestAirdrop(signer.publicKey, 10 * LAMPORTS_PER_SOL);
+      const latestBlockhash = await provider.connection.getLatestBlockhash();
+      await provider.connection.confirmTransaction({
+        signature: sig,
+        ...latestBlockhash,
+      });
     }
 
-    [vaultPda] = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from("vault"),
-        owner.publicKey.toBuffer(),
-        vaultId.toArrayLike(Buffer, "le", 8),
-      ],
-      program.programId
-    );
-
-    [treasuryPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("treasury"), vaultPda.toBuffer()],
-      program.programId
-    );
-
-    [streamPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("stream"), vaultPda.toBuffer(), recipient.publicKey.toBuffer()],
+    [configPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("mesh_config")],
       program.programId
     );
   });
 
-  it("Initializes VibeVault successfully", async () => {
-    const tx = await program.methods
-      .initializeVault(vaultId, maxRate)
-      .accounts({
-        vault: vaultPda,
-        treasury: treasuryPda,
-        initialAgent: agent.publicKey,
-        owner: owner.publicKey,
+  it("1. Initializes the MeshConfig PDA correctly", async () => {
+    const feeBps = 200; // 2.00%
+    await program.methods
+      .initializeProtocol(feeBps)
+      .accountsPartial({
+        config: configPda,
+        admin: admin.publicKey,
+        feeRecipient: feeRecipient.publicKey,
         systemProgram: SystemProgram.programId,
       })
-      .signers([owner])
+      .signers([admin])
       .rpc();
 
-    const vaultAccount = await program.account.vaultState.fetch(vaultPda);
-    expect(vaultAccount.owner.toBase58()).to.equal(owner.publicKey.toBase58());
-    expect(vaultAccount.agentKey.toBase58()).to.equal(agent.publicKey.toBase58());
-    expect(vaultAccount.maxRatePerSecond.toNumber()).to.equal(maxRate.toNumber());
+    const configAccount = await program.account.meshConfig.fetch(configPda);
+    expect(configAccount.admin.toBase58()).to.equal(admin.publicKey.toBase58());
+    expect(configAccount.feeRecipient.toBase58()).to.equal(feeRecipient.publicKey.toBase58());
+    expect(configAccount.feeBasisPoints).to.equal(feeBps);
   });
 
-  it("Deposits native SOL into Vault Treasury PDA", async () => {
-    const depositAmount = new anchor.BN(3 * LAMPORTS_PER_SOL);
+  it("2. Task Creator initializes a multi-milestone task and escrows SOL", async () => {
+    taskId = Array.from(crypto.randomBytes(16));
+    const specHash = Array.from(crypto.createHash("sha256").update("replit-task-ast-parse").digest());
+    const rewardLamports = new anchor.BN(2 * LAMPORTS_PER_SOL);
+    const workerStake = new anchor.BN(0.5 * LAMPORTS_PER_SOL);
+    const milestonesCount = 2;
+
+    [taskPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("task"), creator.publicKey.toBuffer(), Buffer.from(taskId)],
+      program.programId
+    );
+
+    [escrowVaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("escrow_vault"), taskPda.toBuffer()],
+      program.programId
+    );
+
+    const vaultPreBalance = await provider.connection.getBalance(escrowVaultPda).catch(() => 0);
 
     await program.methods
-      .depositFunds(depositAmount)
-      .accounts({
-        vault: vaultPda,
-        treasury: treasuryPda,
-        funder: owner.publicKey,
-        owner: owner.publicKey,
+      .createTask(taskId, rewardLamports, workerStake, milestonesCount, specHash)
+      .accountsPartial({
+        task: taskPda,
+        escrowVault: escrowVaultPda,
+        creator: creator.publicKey,
         systemProgram: SystemProgram.programId,
       })
-      .signers([owner])
+      .signers([creator])
       .rpc();
 
-    const treasuryBalance = await provider.connection.getBalance(treasuryPda);
-    expect(treasuryBalance).to.be.at.least(depositAmount.toNumber());
+    const taskAccount = await program.account.taskAccount.fetch(taskPda);
+    expect(taskAccount.creator.toBase58()).to.equal(creator.publicKey.toBase58());
+    expect(taskAccount.rewardTotal.toNumber()).to.equal(rewardLamports.toNumber());
+    expect(taskAccount.milestonesCount).to.equal(milestonesCount);
+    expect(taskAccount.state).to.deep.equal({ created: {} });
 
-    const vaultAccount = await program.account.vaultState.fetch(vaultPda);
-    expect(vaultAccount.totalDeposited.toString()).to.equal(depositAmount.toString());
+    const vaultPostBalance = await provider.connection.getBalance(escrowVaultPda);
+    expect(vaultPostBalance - vaultPreBalance).to.equal(rewardLamports.toNumber());
   });
 
-  it("Prevents unauthorized caller from creating a stream", async () => {
-    const streamDurationSecs = 10;
-    const now = Math.floor(Date.now() / 1000);
-    const endTime = new anchor.BN(now + streamDurationSecs);
+  it("3. Autonomous Agent claims the task with required stake deposit", async () => {
+    const leaseDuration = new anchor.BN(3600); // 1 hour lease
 
+    await program.methods
+      .claimTask(leaseDuration)
+      .accountsPartial({
+        task: taskPda,
+        escrowVault: escrowVaultPda,
+        worker: workerAgent.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([workerAgent])
+      .rpc();
+
+    const taskAccount = await program.account.taskAccount.fetch(taskPda);
+    expect(taskAccount.worker.toBase58()).to.equal(workerAgent.publicKey.toBase58());
+    expect(taskAccount.state).to.deep.equal({ claimed: {} });
+    expect(taskAccount.workerStakeLocked.toNumber()).to.equal(0.5 * LAMPORTS_PER_SOL);
+  });
+
+  it("4. Rejects out-of-order milestone submission", async () => {
+    const fakeProof = Array.from(crypto.createHash("sha256").update("invalid-order").digest());
     try {
       await program.methods
-        .createStream(streamRate, endTime)
-        .accounts({
-          vault: vaultPda,
-          stream: streamPda,
-          recipient: recipient.publicKey,
-          signer: unauthorizedAgent.publicKey,
-          systemProgram: SystemProgram.programId,
+        .submitMilestone(2, fakeProof) // Attempt milestone 2 before milestone 1
+        .accountsPartial({
+          task: taskPda,
+          worker: workerAgent.publicKey,
         })
-        .signers([unauthorizedAgent])
+        .signers([workerAgent])
         .rpc();
-      expect.fail("Unauthorized agent should have been blocked");
+      expect.fail("Expected out-of-order submission to fail");
     } catch (err: any) {
-      expect(err.toString()).to.contain("UnauthorizedAgentOrOwner");
+      expect(err.error.errorCode.code).to.equal("InvalidMilestoneOrder");
     }
   });
 
-  it("Allows authorized AI Agent to create an active stream", async () => {
-    const streamDurationSecs = 4; // short duration for testing
-    const now = Math.floor(Date.now() / 1000);
-    const endTime = new anchor.BN(now + streamDurationSecs);
+  it("5. Worker successfully submits milestone 1 proof hash", async () => {
+    const milestoneProof = Array.from(crypto.createHash("sha256").update("milestone-1-ast-complete").digest());
 
     await program.methods
-      .createStream(streamRate, endTime)
-      .accounts({
-        vault: vaultPda,
-        stream: streamPda,
-        recipient: recipient.publicKey,
-        signer: agent.publicKey,
+      .submitMilestone(1, milestoneProof)
+      .accountsPartial({
+        task: taskPda,
+        worker: workerAgent.publicKey,
+      })
+      .signers([workerAgent])
+      .rpc();
+
+    const taskAccount = await program.account.taskAccount.fetch(taskPda);
+    expect(taskAccount.executionProofHash).to.deep.equal(milestoneProof);
+  });
+
+  it("6. Creator verifies milestone 1 and releases streamed micro-settlement", async () => {
+    const workerPreBalance = await provider.connection.getBalance(workerAgent.publicKey);
+    const feeRecipientPreBalance = await provider.connection.getBalance(feeRecipient.publicKey);
+
+    await program.methods
+      .verifyAndSettle()
+      .accountsPartial({
+        config: configPda,
+        task: taskPda,
+        escrowVault: escrowVaultPda,
+        worker: workerAgent.publicKey,
+        feeRecipient: feeRecipient.publicKey,
+        signer: creator.publicKey,
         systemProgram: SystemProgram.programId,
       })
-      .signers([agent])
+      .signers([creator])
       .rpc();
 
-    const streamAccount = await program.account.streamState.fetch(streamPda);
-    expect(streamAccount.recipient.toBase58()).to.equal(recipient.publicKey.toBase58());
-    expect(streamAccount.ratePerSecond.toString()).to.equal(streamRate.toString());
+    const taskAccount = await program.account.taskAccount.fetch(taskPda);
+    expect(taskAccount.milestonesCompleted).to.equal(1);
+    expect(taskAccount.state).to.deep.equal({ partiallySettled: {} });
+
+    // Payout calculation: 2 SOL / 2 milestones = 1 SOL. 2% fee = 0.02 SOL. Worker net = 0.98 SOL.
+    const workerPostBalance = await provider.connection.getBalance(workerAgent.publicKey);
+    const feeRecipientPostBalance = await provider.connection.getBalance(feeRecipient.publicKey);
+
+    expect(workerPostBalance - workerPreBalance).to.equal(0.98 * LAMPORTS_PER_SOL);
+    expect(feeRecipientPostBalance - feeRecipientPreBalance).to.equal(0.02 * LAMPORTS_PER_SOL);
   });
 
-  it("Allows permissionless Keeper to crank stream and disburse lamports", async () => {
-    // Wait 2 seconds to accumulate streaming balance
-    await new Promise((resolve) => setTimeout(resolve, 2500));
-
-    const recipientBalanceBefore = await provider.connection.getBalance(recipient.publicKey);
+  it("7. Worker submits milestone 2 and reaches full settlement with stake refund", async () => {
+    const milestone2Proof = Array.from(crypto.createHash("sha256").update("milestone-2-fuzzing-passed").digest());
 
     await program.methods
-      .crankStream()
-      .accounts({
-        vault: vaultPda,
-        stream: streamPda,
-        treasury: treasuryPda,
-        recipient: recipient.publicKey,
-        cranker: keeper.publicKey,
+      .submitMilestone(2, milestone2Proof)
+      .accountsPartial({
+        task: taskPda,
+        worker: workerAgent.publicKey,
       })
-      .signers([keeper])
+      .signers([workerAgent])
       .rpc();
 
-    const recipientBalanceAfter = await provider.connection.getBalance(recipient.publicKey);
-    expect(recipientBalanceAfter).to.be.greaterThan(recipientBalanceBefore);
+    const workerPreBalance = await provider.connection.getBalance(workerAgent.publicKey);
+
+    await program.methods
+      .verifyAndSettle()
+      .accountsPartial({
+        config: configPda,
+        task: taskPda,
+        escrowVault: escrowVaultPda,
+        worker: workerAgent.publicKey,
+        feeRecipient: feeRecipient.publicKey,
+        signer: creator.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([creator])
+      .rpc();
+
+    const taskAccount = await program.account.taskAccount.fetch(taskPda);
+    expect(taskAccount.milestonesCompleted).to.equal(2);
+    expect(taskAccount.state).to.deep.equal({ settled: {} });
+    expect(taskAccount.rewardRemaining.toNumber()).to.equal(0);
+    expect(taskAccount.workerStakeLocked.toNumber()).to.equal(0);
+
+    // Worker receives 0.98 SOL + 0.5 SOL returned stake = 1.48 SOL
+    const workerPostBalance = await provider.connection.getBalance(workerAgent.publicKey);
+    expect(workerPostBalance - workerPreBalance).to.equal(1.48 * LAMPORTS_PER_SOL);
   });
 
-  it("Closes stream and reclaims rent lamports after completion", async () => {
-    // Wait until stream reaches end_time
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-
-    // Final crank to flush accrued lamports
-    await program.methods
-      .crankStream()
-      .accounts({
-        vault: vaultPda,
-        stream: streamPda,
-        treasury: treasuryPda,
-        recipient: recipient.publicKey,
-        cranker: keeper.publicKey,
-      })
-      .signers([keeper])
-      .rpc();
-
-    const ownerBalanceBefore = await provider.connection.getBalance(owner.publicKey);
-
-    await program.methods
-      .closeStream()
-      .accounts({
-        vault: vaultPda,
-        stream: streamPda,
-        owner: owner.publicKey,
-      })
-      .signers([owner])
-      .rpc();
-
-    const ownerBalanceAfter = await provider.connection.getBalance(owner.publicKey);
-    expect(ownerBalanceAfter).to.be.greaterThan(ownerBalanceBefore);
-
-    // Verify account is closed
-    const streamAccountInfo = await provider.connection.getAccountInfo(streamPda);
-    expect(streamAccountInfo).to.be.null;
+  it("8. Malicious actor cannot dispute or tamper with settled tasks", async () => {
+    const dummyHash = Array.from(crypto.randomBytes(32));
+    try {
+      await program.methods
+        .disputeTask(dummyHash)
+        .accountsPartial({
+          task: taskPda,
+          creator: maliciousActor.publicKey,
+        })
+        .signers([maliciousActor])
+        .rpc();
+      expect.fail("Expected dispute by unauthorized attacker to fail");
+    } catch (err: any) {
+      expect(err.error.errorCode.code).to.equal("InvalidTaskState");
+    }
   });
 });

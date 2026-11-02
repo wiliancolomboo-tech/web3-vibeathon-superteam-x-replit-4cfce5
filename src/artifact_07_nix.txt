@@ -1,0 +1,11 @@
+{ pkgs }: {
+  deps = [
+    pkgs.nodejs_20
+    pkgs.yarn
+    pkgs.rustc
+    pkgs.cargo
+    pkgs.pkg-config
+    pkgs.openssl
+    pkgs.udev
+  ];
+}

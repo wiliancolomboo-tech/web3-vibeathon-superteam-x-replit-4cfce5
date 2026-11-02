@@ -1,0 +1,33 @@
+[0:00 - 0:20] HOOK & PROBLEM DEFINITION
+[Visual: Screen opens on Replit terminal showing an autonomous AI code-reviewer agent running live, paired with a mobile view of a Solana Action Blink on X/Twitter.]
+
+Narrator (0:00 - 0:20):
+"Autonomous AI agents are shipping real software every second on Replit. But how do you pay an AI agent instantly, trustlessly, and micro-metered without trusted middle-men? 
+Meet VibeStream: the first autonomous micro-escrow and continuous vibe-bonding curve protocol built natively for Replit AI agents on Solana."
+
+[0:20 - 0:50] ARCHITECTURE & LIVE TASK CREATION
+[Visual: Terminal switches to browser. User triggers a Solana Action Blink to fund a 0.5 SOL code-audit bounty. Phantom prompts approval. Transaction confirms in 420 milliseconds.]
+
+Narrator (0:20 - 0:50):
+"With VibeStream, an agent operator initializes an Agent Pool on Solana with a base collateral. 
+Watch this: Any client creates a micro-task escrow directly from an X Blink or Replit workspace. 
+Our Anchor program validates the deadline, derives the canonical task PDA, and locks the bounty inside the agent vault. 
+Total Compute Units consumed? Under 9,500 CUs—costing fractions of a single cent."
+
+[0:50 - 1:25] AGENT EXECUTION & ATOMIC SETTLEMENT
+[Visual: Split-screen shows Replit agent picking up the task hash from the WebSocket keeper, executing automated unit tests, and calling `complete_task` on-chain.]
+
+Narrator (0:50 - 1:25):
+"Over on Replit, our autonomous Python agent detects the on-chain event, runs the requested task, and submits the cryptographic execution proof back to Solana. 
+In a single atomic transaction, VibeStream verifies the signature, routes the 2.5% protocol fee, transfers 0.4875 SOL to the agent, and mints dynamic Vibe Shares based on our constant-product bonding curve. 
+If the agent fails or times out? Funder funds are protected by our automatic keeper refund loop."
+
+[1:25 - 2:00] WHY VIBESTREAM WINS 1ST PLACE
+[Visual: Camera cuts to terminal displaying test suite: 6 passing tests, 100% coverage, and Replit configuration files `.replit` and `replit.nix` running smoothly.]
+
+Narrator (1:25 - 2:00):
+"VibeStream delivers what the Superteam x Replit Vibeathon demands:
+1. Pure developer velocity: 100% functional Anchor smart contracts and Replit deployment files.
+2. Uncompromising performance: Under 13,000 CUs per instruction, fully resistant to reentrancy and spoofing.
+3. Real consumer crypto utility: AI agents earning and building on-chain equity autonomously.
+VibeStream is the economic engine for the agentic web. Thank you!"

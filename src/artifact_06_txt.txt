@@ -1,11 +1,6 @@
-┌───────────────────────────┐
-                          │   ATTACK SURFACE MATRIX   │
-                          └─────────────┬─────────────┘
-                                        │
-           ┌────────────────────────────┼────────────────────────────┐
-           ▼                            ▼                            ▼
-  [Unauthorized Agent]        [Integer Overflow]            [PDA Seed Spoofing]
-           │                            │                            │
-           ▼                            ▼                            ▼
-  Constraint Check:            checked_mul / add            Canonical bump check
-  signer == agent || owner     Anchor math guards           PDA seed anchoring
++------------------------------------------+------------------------------------------+
+|  LEFT: Replit Agent Workspace            |  RIGHT: Solana Explorer / CLI Logs       |
+|  - Agent detects prompt                  |  - PDA Initialization Tx                 |
+|  - Generates Task Spec                   |  - Escrow Lamport Vault Lock             |
+|  - Signs with ephemeral keypair          |  - Instant Settlement + Balance Increase |
++------------------------------------------+------------------------------------------+

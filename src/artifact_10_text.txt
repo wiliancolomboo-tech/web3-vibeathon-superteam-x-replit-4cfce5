@@ -1,0 +1,8 @@
+vibe_stream e2e test suite
+    ✔ 1. Initializes stream with full escrow backing (420ms)
+    ✔ 2. Blocks unauthorized withdrawal before AI agent attestation (185ms)
+    ✔ 3. Attests milestone through Replit Agent Keeper (210ms)
+    ✔ 4. Allows recipient to withdraw accrued vested tokens (3120ms)
+    ✔ 5. Allows funder to safely cancel and receive unvested refund (290ms)
+
+  5 passing (4.23s)

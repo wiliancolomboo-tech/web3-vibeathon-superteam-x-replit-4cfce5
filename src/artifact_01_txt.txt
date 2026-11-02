@@ -1,14 +1,10 @@
-┌──────────────────────────────────────────────┐
-               │         Replit Autonomous Agent Pod          │
-               │   (Observability, LLM Inference, Trigger)    │
-               └──────────────────────┬───────────────────────┘
-                                      │ Ed25519 Session Signature
-                                      ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│                    Solana Runtime (Anchor Program)                         │
-│                                                                            │
-│  [Agent Treasury PDA] ──(Stream CPI)──► [Contributor Escrow PDA]           │
-│           │                                       │                        │
-│     Keeper Cranker                         Deterministic                   │
-│     (CU-Optimized)                           Settlement                    │
-└────────────────────────────────────────────────────────────────────────────┘
+[Natural Language / Replit Agent]
+                      │
+                      ▼ (Tool Call / RPC)
+             ┌─────────────────┐
+             │   VibeAgent     │ ◄─── Escrow Deposits (SPL/SOL)
+             │   On-Chain Core │ ◄─── Agent Capital Staking
+             └────────┬────────┘
+                      │ (Atomic Settlement / CPI)
+                      ▼
+         [Worker Settlement & Vault Release]

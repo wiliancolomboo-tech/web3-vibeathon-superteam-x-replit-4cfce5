@@ -1,0 +1,18 @@
++------------------------------------+------------------------------------+-------------------------------------------+
+| Threat Vector                      | Severity                          | Mitigation Architecture                   |
++------------------------------------+------------------------------------+-------------------------------------------+
+| Arbitrary Arbiter Impersonation    | CRITICAL                           | Native Ed25519 Precompile check ensuring   |
+|                                    |                                    | the exact byte match of Arbiter public key|
++------------------------------------+------------------------------------+-------------------------------------------+
+| Double Spend / Double Claim       | CRITICAL                           | State boolean guards (`is_completed`)     |
+|                                    |                                    | updated prior to CPI transfer execution   |
++------------------------------------+------------------------------------+-------------------------------------------+
+| PDA Seed Collision / Spoofing      | HIGH                               | Multi-part seed derivation using          |
+|                                    |                                    | `creator_pubkey` + `escrow_id`            |
++------------------------------------+------------------------------------+-------------------------------------------+
+| Rogue Vault Drainage               | HIGH                               | Vault PDA derived deterministically;      |
+|                                    |                                    | authority tied to program seeds           |
++------------------------------------+------------------------------------+-------------------------------------------+
+| Premature Creator Refund           | MEDIUM                             | Hard clock check vs. immutable deadline;  |
+|                                    |                                    | enforces worker completion guarantee      |
++------------------------------------+------------------------------------+-------------------------------------------+

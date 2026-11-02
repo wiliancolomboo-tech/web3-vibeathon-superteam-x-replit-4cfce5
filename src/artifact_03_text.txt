@@ -1,0 +1,18 @@
+vibe_protocol/
+├── Cargo.toml
+├── Anchor.toml
+├── programs/
+│   └── vibe_protocol/
+│       ├── Cargo.toml
+│       └── src/
+│           ├── lib.rs
+│           ├── state.rs
+│           ├── errors.rs
+│           └── instructions/
+│               ├── initialize.rs
+│               ├── create_stream.rs
+│               ├── claim_stream.rs
+│               ├── record_milestone.rs
+│               └── cancel_stream.rs
+└── tests/
+    └── vibe_protocol.ts

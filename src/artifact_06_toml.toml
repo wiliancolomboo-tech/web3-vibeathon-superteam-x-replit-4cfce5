@@ -1,0 +1,15 @@
+modules = ["nodejs-20", "rust-1.75"]
+
+[nix]
+channel = "stable-23_11"
+
+[workflows]
+runButton = "Run VibeStream Agent & Tests"
+
+[[workflows.workflow]]
+name = "Run VibeStream Agent & Tests"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "anchor test"

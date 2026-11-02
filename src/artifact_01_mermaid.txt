@@ -1,0 +1,64 @@
+flowchart TD
+    subgraph ClientLayer ["Client & Replit Agent Layer"]
+        Creator["Task Creator / Sponsor (Replit Dev)"]
+        Worker["Autonomous AI Worker Agent (Replit Runner)"]
+        Keeper["Autonomous Keeper / Arbiter Bot"]
+    end
+
+    subgraph ProgramLayer ["Solana On-Chain Program (vibe_mesh)"]
+        direction TB
+        InitIx["instruction: initialize_task"]
+        ClaimIx["instruction: claim_task"]
+        SubmitIx["instruction: submit_milestone"]
+        VerifyIx["instruction: verify_and_settle"]
+        DisputeIx["instruction: dispute_task"]
+        CancelIx["instruction: cancel_task"]
+    end
+
+    subgraph StateAccounts ["Program Derived Addresses (PDAs)"]
+        ConfigPDA["MeshConfig PDA\nseeds=['mesh_config']\n- fee_basis_points\n- protocol_vault"]
+        TaskPDA["TaskAccount PDA\nseeds=['task', creator, task_id]\n- creator, worker\n- reward_total, balance\n- state, milestone_mask"]
+        EscrowVault["Escrow Vault PDA\nseeds=['escrow_vault', task_pda]\n- Holds native SOL / SPL"]
+    end
+
+    subgraph ExternalPrograms ["Solana Native & CPI Programs"]
+        SystemProgram["System Program\n(11111111111111111111111111111111)"]
+        TokenProgram["SPL Token Program / Token-2022\n(TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA)"]
+    end
+
+    %% Interactions
+    Creator -->|"1. create_task(id, reward, specs)"| InitIx
+    InitIx -->|"Assert: reward >= min_dust"| TaskPDA
+    InitIx -->|"CPI: Transfer SOL/SPL to Vault"| EscrowVault
+    InitIx -.-> SystemProgram
+
+    Worker -->|"2. claim_task(worker_pubkey, stake)"| ClaimIx
+    ClaimIx -->|"Assert State == Created\nLock Stake"| TaskPDA
+    ClaimIx -->|"CPI: Transfer Worker Stake"| EscrowVault
+
+    Worker -->|"3. submit_milestone(code_hash, test_merkle_root)"| SubmitIx
+    SubmitIx -->|"Assert State == Claimed\nRecord Milestone Proof"| TaskPDA
+
+    Creator -->|"4a. verify_and_settle(milestone_idx)"| VerifyIx
+    Keeper -->|"4b. Keeper Auto-Unlock (Timeout)"| VerifyIx
+    VerifyIx -->|"Assert Valid Signer or Timeout\nState -> Settled"| TaskPDA
+    VerifyIx -->|"CPI: Transfer Reward to Worker"| EscrowVault
+    EscrowVault -.->|"Disburse Reward"| Worker
+
+    Creator -->|"5. dispute_task(reason_hash)"| DisputeIx
+    DisputeIx -->|"Freeze Escrow\nState -> Disputed"| TaskPDA
+
+    Creator -->|"6. cancel_task (If unclaimed)"| CancelIx
+    CancelIx -->|"Refund unallocated funds"| EscrowVault
+    EscrowVault -.->|"Refund SOL"| Creator
+
+    %% Styling
+    classDef pda fill:#241d3b,stroke:#a855f7,stroke-width:2px,color:#ffffff;
+    classDef ix fill:#0f172a,stroke:#38bdf8,stroke-width:1px,color:#e2e8f0;
+    classDef ext fill:#1e293b,stroke:#64748b,stroke-width:1px,color:#94a3b8;
+    classDef client fill:#18181b,stroke:#22c55e,stroke-width:2px,color:#ffffff;
+
+    class ConfigPDA,TaskPDA,EscrowVault pda;
+    class InitIx,ClaimIx,SubmitIx,VerifyIx,DisputeIx,CancelIx ix;
+    class SystemProgram,TokenProgram ext;
+    class Creator,Worker,Keeper client;

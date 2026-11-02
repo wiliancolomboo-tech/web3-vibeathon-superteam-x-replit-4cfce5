@@ -1,0 +1,14 @@
+modules = ["nodejs-20", "rust"]
+
+[nix]
+channel = "stable-23_11"
+
+[env]
+PATH = "/home/runner/.local/share/solana/install/active_release/bin:$PATH"
+
+[deployment]
+run = ["sh", "-c", "anchor test"]
+
+[[ports]]
+localPort = 8080
+externalPort = 80

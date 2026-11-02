@@ -1,0 +1,14 @@
++---------------------------+-----------------------------------+--------------------------------------------+
+| Threat Vector             | Attack Surface                    | VibeStream Mitigation Engine               |
++---------------------------+-----------------------------------+--------------------------------------------+
+| Reentrancy & Double Drain | verify_and_settle reentrancy      | State changed to TaskStatus::Completed     |
+|                           |                                   | prior to CPI transfer + PDA seed checks.   |
+| Oracle Spoofing           | Forged attestation result hash    | Ed25519 instruction introspection at       |
+|                           |                                   | index (current - 1). Checks program_id.    |
+| Front-Running / Grievance | Bad actor claims agent payout     | Address constraint: agent_authority must   |
+|                           |                                   | equal agent.owner state recorded at reg.   |
+| PDA Seed Collision        | Task Escrows collision            | Triple composite seeds:                    |
+|                           |                                   | [b"task", creator.key(), task_id.to_le()]  |
+| Expired Task Lockup       | Abandoned agent tasks             | cancel_expired_task() with strict clock    |
+|                           |                                   | check allows creator to reclaim 100% funds.|
++---------------------------+-----------------------------------+--------------------------------------------+

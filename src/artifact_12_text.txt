@@ -1,0 +1,7 @@
+vibe-escrow test suite
+    ✔ 1. Initializes a Vibe bounty and locks funds in Escrow Vault PDA (420ms)
+    ✔ 2. Rejects attestation if build hash does not match expected spec hash (189ms)
+    ✔ 3. Accepts genuine attestation from designated Replit Agent (215ms)
+    ✔ 4. Claims settlement with 95/5 protocol split disbursement (310ms)
+
+  4 passing (1.13s)
