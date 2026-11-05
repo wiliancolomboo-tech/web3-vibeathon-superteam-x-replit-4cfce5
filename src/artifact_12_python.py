@@ -31,5 +31,5 @@ def run_replit_evaluator(task_id: int, expected_hash_hex: str):
 
 if __name__ == "__main__":
     # Test vector execution
-    mock_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    mock_hash = "0000000000000000000000000000000000000000000000000000000000000000"
     run_replit_evaluator(42069, mock_hash)
